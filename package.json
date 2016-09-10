@@ -22,7 +22,7 @@
   },
   "configSchema": "tplink-smartplug-config-schema.coffee",
   "dependencies": {
-    "hs100-api": "^0.2.0"
+    "hs100-api": "git://github.com/thexperiments/hs100-api.git"
   },
   "peerDependencies": {
     "pimatic": ">=0.8.0 <1.0.0"

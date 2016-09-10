@@ -52,6 +52,11 @@ module.exports = (env) ->
       })
 
       @framework.deviceManager.on 'discover', () =>
+
+        @framework.deviceManager.discoverMessage(
+          'pimatic-tplink-smartplug', "Searching for devices"
+        )
+
         TPlinkAPIinstance = new TPlinkAPI
         
         TPlinkAPIinstance.search(3000,0).then (results) =>
@@ -109,17 +114,25 @@ module.exports = (env) ->
       super()
 
     getState: () ->
-      @requestPromise =  Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
+      env.logger.debug "getting state"
+      @requestPromise = Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
+        env.logger.debug "state is #{powerState}"
         @_setState powerState
-        return Promise.resolve @_state
+        #return Promise.resolve @_state
       ).catch((error) =>
         env.logger.error("Unable to get power state of device: " + error.toString())
-        return Promise.reject
+        #return Promise.reject
       ) 
 
     changeStateTo: (state) ->
-      return @plugInstance.setPowerState(state).then () =>
+      env.logger.debug "setting state to #{state}"
+      @requestPromise = Promise.resolve(@plugInstance.setPowerState(state)).then(() =>
+        env.logger.debug "setting state success"
         @_setState(state)
+      ).catch((error) =>
+        env.logger.error("Unable to set power state of device: " + error.toString())
+        #return Promise.reject
+      ) 
 
   class TPlinkHS100 extends TPlinkBaseDevice
 
