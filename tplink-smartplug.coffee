@@ -118,7 +118,7 @@ module.exports = (env) ->
       @requestPromise = Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
         env.logger.debug "state is #{powerState}"
         @_setState powerState
-        #return Promise.resolve @_state
+        return Promise.resolve @_state
       ).catch((error) =>
         env.logger.error("Unable to get power state of device: " + error.toString())
         #return Promise.reject
