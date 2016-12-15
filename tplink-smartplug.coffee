@@ -50,12 +50,6 @@ module.exports = (env) ->
         createCallback: (config, lastState) =>
           return new TPlinkHS110(config, @, lastState)
       })
-      
-      @framework.deviceManager.registerDeviceClass("TPlinkHSConsumption", {
-        configDef: deviceConfigDef.TPlinkHSConsumption,
-        createCallback: (config, lastState) =>
-          return new TPlinkHSConsumption(config, @, lastState)
-      })
 
       @framework.deviceManager.on 'discover', () =>
 
@@ -63,7 +57,7 @@ module.exports = (env) ->
           'pimatic-tplink-smartplug', "Searching for devices"
         )
 
-        TPlinkAPIinstance = new TPlinkAPI
+        TPlinkAPIinstance = new TPLinkAPI.Client();
         
         TPlinkAPIinstance.search(3000,0).then (results) =>
           lastId = null
@@ -103,8 +97,9 @@ module.exports = (env) ->
       @plugConfig = 
         host: @ip
 
-      @plugInstance = new TPlinkAPI @plugConfig
-      
+      client = new TPlinkAPI.Client();
+      @plugInstance = client.getPlug(@plugConfig);
+
       updateValue = =>
         if @config.interval > 0
           @getState().finally( =>
@@ -140,7 +135,7 @@ module.exports = (env) ->
         #return Promise.reject
       ) 
       
-  class TPlinkHSConsumption extends env.devices.Device
+  class TPlinkHSConsumption extends env.devices.PowerSwitch
     
     constructor: (@config, @plugin, lastState) ->
       @name = @config.name
@@ -151,9 +146,7 @@ module.exports = (env) ->
       @_current = lastState?.current?.value
       @_total = lastState?.total?.value
       @interval = 1000 * @config.interval
-      
-      @attributes = {}
-  
+        
       @attributes.watt = {
         description: "The measured wattage"
         type: "number"
@@ -185,14 +178,16 @@ module.exports = (env) ->
       @plugConfig = 
         host: @ip
 
-      @plugInstance = new TPlinkAPI @plugConfig
-      
+      client = new TPlinkAPI.Client();
+      @plugInstance = client.getPlug(@plugConfig);
+
       updateValue = =>
         if @config.interval > 0
+          @getState()
           @getConsumption().finally( =>
             @timeoutId = setTimeout(updateValue, @interval) 
           )
-      
+		  
       super()
       updateValue()
 
@@ -201,6 +196,27 @@ module.exports = (env) ->
       @requestPromise.cancel() if @requestPromise?
       super()
 
+    getState: () ->
+      env.logger.debug "getting state"
+      @requestPromise = Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
+        env.logger.debug "state is #{powerState}"
+        @_setState powerState
+        return Promise.resolve @_state
+      ).catch((error) =>
+        env.logger.error("Unable to get power state of device: " + error.toString())
+        #return Promise.reject
+      ) 
+
+    changeStateTo: (state) ->
+      env.logger.debug "setting state to #{state}"
+      @requestPromise = Promise.resolve(@plugInstance.setPowerState(state)).then(() =>
+        env.logger.debug "setting state success"
+        @_setState(state)
+      ).catch((error) =>
+        env.logger.error("Unable to set power state of device: " + error.toString())
+        #return Promise.reject
+      )
+      
     getConsumption: () ->
       env.logger.debug "getting consumption"
       @requestPromise = Promise.resolve(@plugInstance.getConsumption()).then((consumption) =>
@@ -226,7 +242,7 @@ module.exports = (env) ->
   class TPlinkHS100 extends TPlinkBaseDevice
 
 
-  class TPlinkHS110 extends TPlinkBaseDevice
+  class TPlinkHS110 extends TPlinkHSConsumption
 
   # ###Finally
   # Create a instance of my plugin
