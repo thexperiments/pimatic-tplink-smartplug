@@ -57,7 +57,7 @@ module.exports = (env) ->
           'pimatic-tplink-smartplug', "Searching for devices"
         )
 
-        TPlinkAPIinstance = new TPLinkAPI.Client();
+        TPlinkAPIinstance = new TPlinkAPI
         
         TPlinkAPIinstance.search(3000,0).then (results) =>
           lastId = null
@@ -97,9 +97,8 @@ module.exports = (env) ->
       @plugConfig = 
         host: @ip
 
-      client = new TPlinkAPI.Client();
-      @plugInstance = client.getPlug(@plugConfig);
-
+      @plugInstance = new TPlinkAPI @plugConfig
+      
       updateValue = =>
         if @config.interval > 0
           @getState().finally( =>
@@ -134,115 +133,12 @@ module.exports = (env) ->
         env.logger.error("Unable to set power state of device: " + error.toString())
         #return Promise.reject
       ) 
-      
-  class TPlinkHSConsumption extends env.devices.PowerSwitch
-    
-    constructor: (@config, @plugin, lastState) ->
-      @name = @config.name
-      @id = @config.id
-      @ip = @config.ip
-      @_watt = lastState?.watt?.value
-      @_voltage = lastState?.voltage?.value
-      @_current = lastState?.current?.value
-      @_total = lastState?.total?.value
-      @interval = 1000 * @config.interval
-        
-      @attributes.watt = {
-        description: "The measured wattage"
-        type: "number"
-        unit: 'W'
-      }
-      
-      @attributes.voltage = {
-        description: "The measured voltage"
-        type: "number"
-        unit: 'V'
-        displaySparkline: false
-      }
-      
-      @attributes.current = {
-        description: "The current in Ampere"
-        type: "number"
-        unit: 'A'
-        displaySparkline: false
-      }
-      
-      @attributes.total = {
-        description: "kWh total"
-        type: "number"
-        unit: 'kWh'
-        acronym: 'Total'
-        displaySparkline: false
-      }
-      
-      @plugConfig = 
-        host: @ip
 
-      client = new TPlinkAPI.Client();
-      @plugInstance = client.getPlug(@plugConfig);
-
-      updateValue = =>
-        if @config.interval > 0
-          @getState()
-          @getConsumption().finally( =>
-            @timeoutId = setTimeout(updateValue, @interval) 
-          )
-		  
-      super()
-      updateValue()
-
-    destroy: () ->
-      clearTimeout(@timeoutId) if @timeoutId?
-      @requestPromise.cancel() if @requestPromise?
-      super()
-
-    getState: () ->
-      env.logger.debug "getting state"
-      @requestPromise = Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
-        env.logger.debug "state is #{powerState}"
-        @_setState powerState
-        return Promise.resolve @_state
-      ).catch((error) =>
-        env.logger.error("Unable to get power state of device: " + error.toString())
-        #return Promise.reject
-      ) 
-
-    changeStateTo: (state) ->
-      env.logger.debug "setting state to #{state}"
-      @requestPromise = Promise.resolve(@plugInstance.setPowerState(state)).then(() =>
-        env.logger.debug "setting state success"
-        @_setState(state)
-      ).catch((error) =>
-        env.logger.error("Unable to set power state of device: " + error.toString())
-        #return Promise.reject
-      )
-      
-    getConsumption: () ->
-      env.logger.debug "getting consumption"
-      @requestPromise = Promise.resolve(@plugInstance.getConsumption()).then((consumption) =>
-        @_watt = Math.round(consumption.get_realtime.power)
-        @emit "watt", @_watt
-        @_voltage = Math.round(consumption.get_realtime.voltage)
-        @emit "voltage", @_voltage
-        @_current = consumption.get_realtime.current
-        @emit "current", @_current
-        @_total = consumption.get_realtime.total
-        @emit "total", @_total
-        
-      ).catch((error) =>
-        env.logger.error("Unable to get consumption of device: " + error.toString())
-        #return Promise.reject
-      ) 
-      
-    getWatt: -> Promise.resolve @_watt
-    getVoltage: -> Promise.resolve @_voltage
-    getCurrent: -> Promise.resolve @_current
-    getTotal: -> Promise.resolve @_total
-    
   class TPlinkHS100 extends TPlinkBaseDevice
 
 
-  class TPlinkHS110 extends TPlinkHSConsumption
+  class TPlinkHS110 extends TPlinkBaseDevice
+
 
   # ###Finally
   # Create a instance of my plugin
