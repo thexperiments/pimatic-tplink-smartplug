@@ -24,7 +24,7 @@ module.exports = {
         description: "IP address of the outlet"
         type: "string"
       interval:
-        description: "Polling interval for outlet state in seconds"
+        description: "Polling interval for outlet state and power usage in seconds"
         type: "number"
         default: 60
   }
