@@ -94,6 +94,8 @@ module.exports = (env) ->
       @ip = @config.ip
       @interval = 1000 * @config.interval
 
+      env.logger.warn "#{JSON.stringify(@attributes)}"
+
       @plugConfig = 
         host: @ip
 
@@ -137,6 +139,32 @@ module.exports = (env) ->
       
   class TPlinkHSConsumption extends env.devices.PowerSwitch
     
+    attributes:
+      state:
+        description: "Current State"
+        type: "boolean"
+        labels: ['on', 'off']
+      watt:
+        description: "The measured wattage"
+        type: "number"
+        unit: 'W'
+      voltage:
+        description: "The measured voltage"
+        type: "number"
+        unit: 'V'
+        displaySparkline: false
+      current:
+        description: "The current in Ampere"
+        type: "number"
+        unit: 'A'
+        displaySparkline: false
+      total:
+        description: "kWh total"
+        type: "number"
+        unit: 'kWh'
+        acronym: 'Total'
+        displaySparkline: false
+
     constructor: (@config, @plugin, lastState) ->
       @name = @config.name
       @id = @config.id
@@ -146,34 +174,6 @@ module.exports = (env) ->
       @_current = lastState?.current?.value
       @_total = lastState?.total?.value
       @interval = 1000 * @config.interval
-        
-      @attributes.watt = {
-        description: "The measured wattage"
-        type: "number"
-        unit: 'W'
-      }
-      
-      @attributes.voltage = {
-        description: "The measured voltage"
-        type: "number"
-        unit: 'V'
-        displaySparkline: false
-      }
-      
-      @attributes.current = {
-        description: "The current in Ampere"
-        type: "number"
-        unit: 'A'
-        displaySparkline: false
-      }
-      
-      @attributes.total = {
-        description: "kWh total"
-        type: "number"
-        unit: 'kWh'
-        acronym: 'Total'
-        displaySparkline: false
-      }
       
       @plugConfig = 
         host: @ip
@@ -240,7 +240,6 @@ module.exports = (env) ->
     getTotal: -> Promise.resolve @_total
     
   class TPlinkHS100 extends TPlinkBaseDevice
-
 
   class TPlinkHS110 extends TPlinkHSConsumption
 
