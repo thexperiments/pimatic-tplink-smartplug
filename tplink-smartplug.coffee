@@ -57,7 +57,7 @@ module.exports = (env) ->
           'pimatic-tplink-smartplug', "Searching for devices"
         )
 
-        TPlinkAPIinstance = new TPLinkAPI.Client();
+        TPlinkAPIinstance = new TPlinkAPI.Client();
         
         TPlinkAPIinstance.search(3000,0).then (results) =>
           lastId = null
