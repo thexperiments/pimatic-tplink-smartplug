@@ -58,33 +58,20 @@ module.exports = (env) ->
         )
 
         TPlinkAPIinstance = new TPlinkAPI.Client();
-        
-        TPlinkAPIinstance.search(3000,0).then (results) =>
-          lastId = null
-          for device in results
-            lastId = @_generateDeviceId "TPlinkSmartplug", lastId
-            ip = device.ip
+
+        TPlinkAPIinstance.startDiscovery().on 'plug-new', (plug) =>
+          #fetch the info for the switch
+          plug.getInfo().then (data)=>
             config =
-              class: if /HS100/.test(device.model) then 'TPlinkHS100' else 'TPlinkHS110',
-              name: device.alias,
-              id: lastId,
-              ip: ip,
+              class: if /HS100/.test(data.sysInfo.model) then 'TPlinkHS100' else 'TPlinkHS110',
+              name: data.sysInfo.alias,
+              id: "#{data.sysInfo.alias.replace(/[^a-zA-Z0-9\-]/g,"")}-#{data.sysInfo.mac.replace(/[^a-zA-Z0-9\-]/g,"-")}",
+              ip: plug.host,
               interval: 60
 
             @framework.deviceManager.discoveredDevice(
-              'pimatic-tplink-smartplug', "#{config.name}@#{ip}", config
+              'pimatic-tplink-smartplug', "#{config.name}@#{config.ip}", config
             )
-
-    _generateDeviceId: (prefix, lastId = null) ->
-      start = 1
-      if lastId?
-        m = lastId.match /.*-([0-9]+)$/
-        start = +m[1] + 1 if m? and m.length is 2
-      for x in [start...1000] by 1
-        result = "#{prefix}-#{x}"
-        matched = @framework.deviceManager.devicesConfig.some (element, iterator) ->
-          element.id is result
-        return result if not matched
 
   class TPlinkBaseDevice extends env.devices.PowerSwitch
     #
