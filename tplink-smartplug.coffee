@@ -21,7 +21,7 @@ module.exports = (env) ->
   #     someThing = require 'someThing'
   #  
 
-  TPlinkAPI = require 'hs100-api'
+  TPlinkAPI = require 'tplink-smarthome-api'
 
   class TPlinkSmartplug extends env.plugins.Plugin
 
@@ -206,14 +206,14 @@ module.exports = (env) ->
       
     getConsumption: () ->
       env.logger.debug "getting consumption"
-      @requestPromise = Promise.resolve(@plugInstance.getConsumption()).then((consumption) =>
-        @_watt = Math.round(consumption.get_realtime.power)
+      @requestPromise = Promise.resolve(@plugInstance.getInfo()).then((data) =>
+        @_watt = Math.round(data.emeter.realtime.power)
         @emit "watt", @_watt
-        @_voltage = Math.round(consumption.get_realtime.voltage)
+        @_voltage = Math.round(data.emeter.realtime.voltage)
         @emit "voltage", @_voltage
-        @_current = consumption.get_realtime.current
+        @_current = data.emeter.realtime.current
         @emit "current", @_current
-        @_total = consumption.get_realtime.total
+        @_total = data.emeter.realtime.total
         @emit "total", @_total
         
       ).catch((error) =>

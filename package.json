@@ -22,7 +22,7 @@
   },
   "configSchema": "tplink-smartplug-config-schema.coffee",
   "dependencies": {
-    "hs100-api": "0.3.0"
+    "tplink-smarthome-api": "^0.22.0"
   },
   "peerDependencies": {
     "pimatic": "0.9.*"
