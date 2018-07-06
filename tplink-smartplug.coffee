@@ -190,22 +190,22 @@ module.exports = (env) ->
       super()
 
     fetchValues: () ->
-      Promise.all(
+      Promise.all([
         @getState()
         @getConsumption()
-      )
+      ])
 
     getConsumption: () ->
       env.logger.debug "getting consumption"
-      @wrapPromise(@plugInstance.getInfo()).then((data) =>
-        env.logger.debug "consumption data is", data.emeter.realtime
-        @_watt = Math.round(data.emeter.realtime.power)
+      @wrapPromise(@plugInstance.emeter.getRealtime()).then((realtime) =>
+        env.logger.debug "consumption data is", realtime
+        @_watt = Math.round(realtime.power)
         @emit "watt", @_watt
-        @_voltage = Math.round(data.emeter.realtime.voltage)
+        @_voltage = Math.round(realtime.voltage)
         @emit "voltage", @_voltage
-        @_current = data.emeter.realtime.current
+        @_current = realtime.current
         @emit "current", @_current
-        @_total = data.emeter.realtime.total
+        @_total = realtime.total
         @emit "total", @_total
         Promise.resolve()
       ).catch((error) =>
