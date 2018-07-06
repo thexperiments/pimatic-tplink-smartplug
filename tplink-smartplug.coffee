@@ -205,13 +205,13 @@ module.exports = (env) ->
       env.logger.debug "getting consumption"
       @wrapPromise(@plugInstance.emeter.getRealtime()).then((realtime) =>
         env.logger.debug "consumption data is", realtime
-        @_watt = Math.round(realtime.power)
+        @_watt = Math.round(realtime.power ? realtime.power_mw / 1000)
         @emit "watt", @_watt
-        @_voltage = Math.round(realtime.voltage)
+        @_voltage = Math.round(realtime.voltage ? realtime.voltage_mv / 1000)
         @emit "voltage", @_voltage
-        @_current = realtime.current
+        @_current = realtime.current ? realtime.current_ma / 1000
         @emit "current", @_current
-        @_total = realtime.total
+        @_total = realtime.total ? realtime.total_wh / 1000
         @emit "total", @_total
         Promise.resolve()
       ).catch((error) =>
