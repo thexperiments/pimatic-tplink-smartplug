@@ -109,13 +109,19 @@ module.exports = (env) ->
       )
 
     updateValues: () =>
-      clearTimeout(@timeoutId) if @timeoutId
-      if @config.interval > 0
-        @fetchValues().finally( =>
-          @timeoutId = setTimeout(@updateValues, @interval)
-        ).catch( =>
-          # ignore error silently, avoid unhandled rejection error
-        )
+      if @timeoutId
+        clearTimeout(@timeoutId)
+        @timeoutId = null
+
+      @fetchValues().finally( =>
+        if @config.interval > 0
+          @timeoutId = setTimeout(( =>
+            @timeoutId = null
+            @updateValues()
+          ), @interval)
+      ).catch( =>
+        # ignore error silently, avoid unhandled rejection error
+      )
 
     fetchValues: () ->
       @getState()
