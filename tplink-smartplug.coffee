@@ -21,7 +21,7 @@ module.exports = (env) ->
   #     someThing = require 'someThing'
   #  
 
-  TPlinkAPI = require 'hs100-api'
+  TPlinkAPI = require 'tplink-smarthome-api'
 
   class TPlinkSmartplug extends env.plugins.Plugin
 
@@ -80,6 +80,7 @@ module.exports = (env) ->
       @id = @config.id
       @ip = @config.ip
       @interval = 1000 * @config.interval
+      @requestPromise = Promise.resolve()
 
       env.logger.warn "#{JSON.stringify(@attributes)}"
 
@@ -88,43 +89,67 @@ module.exports = (env) ->
 
       client = new TPlinkAPI.Client();
       @plugInstance = client.getPlug(@plugConfig);
-
-      updateValue = =>
-        if @config.interval > 0
-          @getState().finally( =>
-            @timeoutId = setTimeout(updateValue, @interval) 
-          )
       
       super()
-      updateValue()
+      @updateValues()
 
     destroy: () ->
       clearTimeout(@timeoutId) if @timeoutId?
       @requestPromise.cancel() if @requestPromise?
       super()
 
+    wrapPromise: (aPromise) ->
+      @requestPromise.reflect().then( () =>
+        @requestPromise = new Promise (resolve, reject) =>
+          aPromise
+            .then (data) =>
+              resolve data if not @requestPromise.isCancelled()
+            .catch (err) =>
+              reject err if not @requestPromise.isCancelled()
+      )
+
+    updateValues: () =>
+      if @timeoutId
+        clearTimeout(@timeoutId)
+        @timeoutId = null
+
+      @fetchValues().finally( =>
+        if @config.interval > 0
+          @timeoutId = setTimeout(( =>
+            @timeoutId = null
+            @updateValues()
+          ), @interval)
+      ).catch( =>
+        # ignore error silently, avoid unhandled rejection error
+      )
+
+    fetchValues: () ->
+      @getState()
+
     getState: () ->
       env.logger.debug "getting state"
-      @requestPromise = Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
+      @wrapPromise(@plugInstance.getPowerState()).then((powerState) =>
         env.logger.debug "state is #{powerState}"
         @_setState powerState
         return Promise.resolve @_state
       ).catch((error) =>
-        env.logger.error("Unable to get power state of device: " + error.toString())
-        #return Promise.reject
+        msg = "Unable to get power state of device: " + error.toString()
+        env.logger.error(msg)
+        Promise.reject msg
       ) 
 
     changeStateTo: (state) ->
       env.logger.debug "setting state to #{state}"
-      @requestPromise = Promise.resolve(@plugInstance.setPowerState(state)).then(() =>
+      @wrapPromise(@plugInstance.setPowerState(state)).then(() =>
         env.logger.debug "setting state success"
         @_setState(state)
       ).catch((error) =>
-        env.logger.error("Unable to set power state of device: " + error.toString())
-        #return Promise.reject
+        msg = "Unable to set power state of device: " + error.toString()
+        env.logger.error(msg)
+        Promise.reject msg
       ) 
       
-  class TPlinkHSConsumption extends env.devices.PowerSwitch
+  class TPlinkHSConsumption extends TPlinkBaseDevice
     
     attributes:
       state:
@@ -165,60 +190,34 @@ module.exports = (env) ->
       @plugConfig = 
         host: @ip
 
-      client = new TPlinkAPI.Client();
-      @plugInstance = client.getPlug(@plugConfig);
-
-      updateValue = =>
-        if @config.interval > 0
-          @getState()
-          @getConsumption().finally( =>
-            @timeoutId = setTimeout(updateValue, @interval) 
-          )
-		  
-      super()
-      updateValue()
+      super(@config, @plugin, lastState)
 
     destroy: () ->
-      clearTimeout(@timeoutId) if @timeoutId?
-      @requestPromise.cancel() if @requestPromise?
       super()
 
-    getState: () ->
-      env.logger.debug "getting state"
-      @requestPromise = Promise.resolve(@plugInstance.getPowerState()).then((powerState) =>
-        env.logger.debug "state is #{powerState}"
-        @_setState powerState
-        return Promise.resolve @_state
-      ).catch((error) =>
-        env.logger.error("Unable to get power state of device: " + error.toString())
-        #return Promise.reject
-      ) 
+    fetchValues: () ->
+      Promise.all([
+        @getState()
+        @getConsumption()
+      ])
 
-    changeStateTo: (state) ->
-      env.logger.debug "setting state to #{state}"
-      @requestPromise = Promise.resolve(@plugInstance.setPowerState(state)).then(() =>
-        env.logger.debug "setting state success"
-        @_setState(state)
-      ).catch((error) =>
-        env.logger.error("Unable to set power state of device: " + error.toString())
-        #return Promise.reject
-      )
-      
     getConsumption: () ->
       env.logger.debug "getting consumption"
-      @requestPromise = Promise.resolve(@plugInstance.getConsumption()).then((consumption) =>
-        @_watt = Math.round(consumption.get_realtime.power)
+      @wrapPromise(@plugInstance.emeter.getRealtime()).then((realtime) =>
+        env.logger.debug "consumption data is", realtime
+        @_watt = Math.round(realtime.power ? realtime.power_mw / 1000)
         @emit "watt", @_watt
-        @_voltage = Math.round(consumption.get_realtime.voltage)
+        @_voltage = Math.round(realtime.voltage ? realtime.voltage_mv / 1000)
         @emit "voltage", @_voltage
-        @_current = consumption.get_realtime.current
+        @_current = realtime.current ? realtime.current_ma / 1000
         @emit "current", @_current
-        @_total = consumption.get_realtime.total
+        @_total = realtime.total ? realtime.total_wh / 1000
         @emit "total", @_total
-        
+        Promise.resolve()
       ).catch((error) =>
-        env.logger.error("Unable to get consumption of device: " + error.toString())
-        #return Promise.reject
+        msg = "Unable to get consumption of device: " + error.toString()
+        env.logger.error(msg)
+        Promise.reject msg
       ) 
       
     getWatt: -> Promise.resolve @_watt
