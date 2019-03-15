@@ -57,7 +57,7 @@ module.exports = (env) ->
           'pimatic-tplink-smartplug', "Searching for devices"
         )
 
-        TPlinkAPIinstance = new TPlinkAPI.Client();
+        TPlinkAPIinstance = new TPlinkAPI.Client()
 
         TPlinkAPIinstance.startDiscovery().on 'plug-new', (plug) =>
           #fetch the info for the switch
@@ -87,8 +87,8 @@ module.exports = (env) ->
       @plugConfig = 
         host: @ip
 
-      client = new TPlinkAPI.Client();
-      @plugInstance = client.getPlug(@plugConfig);
+      client = new TPlinkAPI.Client()
+      @plugInstance = client.getPlug(@plugConfig)
       
       super()
       @updateValues()
