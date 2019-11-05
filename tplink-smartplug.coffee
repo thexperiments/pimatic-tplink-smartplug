@@ -134,7 +134,7 @@ module.exports = (env) ->
         return Promise.resolve @_state
       ).catch((error) =>
         msg = "Unable to get power state of device: " + error.toString()
-        env.logger.error(msg)
+        env.logger.warn(msg)
         Promise.reject msg
       ) 
 
@@ -145,7 +145,7 @@ module.exports = (env) ->
         @_setState(state)
       ).catch((error) =>
         msg = "Unable to set power state of device: " + error.toString()
-        env.logger.error(msg)
+        env.logger.warn(msg)
         Promise.reject msg
       ) 
       
@@ -216,7 +216,7 @@ module.exports = (env) ->
         Promise.resolve()
       ).catch((error) =>
         msg = "Unable to get consumption of device: " + error.toString()
-        env.logger.error(msg)
+        env.logger.warn(msg)
         Promise.reject msg
       ) 
       
